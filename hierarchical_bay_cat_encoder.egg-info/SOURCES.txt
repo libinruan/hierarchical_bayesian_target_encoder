@@ -1,0 +1,8 @@
+README.md
+setup.py
+BayCatEncoder/__init__.py
+BayCatEncoder/code.py
+hierarchical_bay_cat_encoder.egg-info/PKG-INFO
+hierarchical_bay_cat_encoder.egg-info/SOURCES.txt
+hierarchical_bay_cat_encoder.egg-info/dependency_links.txt
+hierarchical_bay_cat_encoder.egg-info/top_level.txt

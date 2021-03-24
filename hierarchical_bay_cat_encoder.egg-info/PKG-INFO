@@ -1,0 +1,32 @@
+Metadata-Version: 2.1
+Name: hierarchical-bay-cat-encoder
+Version: 0.1.1
+Summary: Bayesian target encoder with the capacity to encode classes derived from multiple categorical features that relate to one another in a hierarchical structure.
+Home-page: https://github.com/libinruan/hierarchical_bayesian_target_encoder
+Author: Li-Pin Juan
+Author-email: lipin.juan02@gmail.com
+License: UNKNOWN
+Description: 
+        # bayesian-cat-encoder
+        Bayesian target encoder with the capacity to encode cross features with hierarchical relationship.
+        
+        
+        
+        [![license](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+        ![python version](https://img.shields.io/badge/python-3.6%2C3.7%2C3.8-blue?logo=python)
+        
+        
+        
+        
+        # Feedback
+        Comments and suggestions are welcome and appreciated. They can be sent to
+        lipin.juan02@gmail.com.
+        
+        
+Keywords: target encoder,bayesian,bayes,categorical features,hierarchical
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown

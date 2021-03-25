@@ -1,1 +1,1 @@
-from .code import BayCatEncoder
+from .code import BayCatEncoder, Timer

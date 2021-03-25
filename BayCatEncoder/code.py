@@ -3,7 +3,18 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from collections import defaultdict
-from sklearn.model_selection import KFold          
+from sklearn.model_selection import KFold      
+
+class Timer:
+    def __enter__(self):
+        self.start=time.time()
+        return self
+    def __exit__(self, *args):
+        self.end=time.time()
+        self.hour, temp = divmod((self.end - self.start), 3600)
+        self.min, self.second = divmod(temp, 60)
+        self.hour, self.min, self.second = int(self.hour), int(self.min), round(self.second, 2)
+        return self
 
 class BayCatEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, 
@@ -59,20 +70,22 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
         count_subset = 0
         for subset in self.col_subsets:
             count_subset += 1
-            for i, (tr_idx, val_idx) in enumerate(kf.split(df)):
-                if self.verbosity: print(f'{subset} - Order {count_subset}/{size_col_subsets} - Round {i+1}/{self.n_fold}')
-                df_tr, df_val = df.iloc[tr_idx].copy(), df.iloc[val_idx].copy() # Vital for avoid "A value is trying to be set on a copy of a slice from a DataFrame." warning.
-                df_stat, stat, cross_features = self._update(df_tr, subset)
-                features_encoded = cross_features + '_code'
-                df.loc[df.index[val_idx], features_encoded] = pd.merge(
-                        df_val[subset], 
-                        df_stat.groupby(subset)[features_encoded].mean(),
-                        left_on=subset,
-                        right_index=True,
-                        how='left'
-                    )[features_encoded].copy() \
-                    .fillna(df[self.target_col].mean())  
-            self.stats[cross_features] = df.groupby(subset)[features_encoded].mean().to_frame()
+            with Timer() as t:
+                for i, (tr_idx, val_idx) in enumerate(kf.split(df)):
+                    if self.verbosity: print(f'{subset} - Order {count_subset}/{size_col_subsets} - Round {i+1}/{self.n_fold}')
+                    df_tr, df_val = df.iloc[tr_idx].copy(), df.iloc[val_idx].copy() # Vital for avoid "A value is trying to be set on a copy of a slice from a DataFrame." warning.
+                    df_stat, stat, cross_features = self._update(df_tr, subset)
+                    features_encoded = cross_features + '_code'
+                    df.loc[df.index[val_idx], features_encoded] = pd.merge(
+                            df_val[subset], 
+                            df_stat.groupby(subset)[features_encoded].mean(),
+                            left_on=subset,
+                            right_index=True,
+                            how='left'
+                        )[features_encoded].copy() \
+                        .fillna(df[self.target_col].mean())  
+                self.stats[cross_features] = df.groupby(subset)[features_encoded].mean().to_frame()
+            if self.verbosity: print(f'time elapsed: {t.hour} hours {t.min} mins {t.second} seconds')   
         return self        
 
     def _update(self, df, subset):

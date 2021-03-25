@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -13,8 +14,9 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                  CV=True, 
                  n_fold=5,
                  drop_intermediate=False,
-                 delimiter='.'):
-        self.group_cols = group_cols # List of column names combination: e.g. ['n1.n2.n4', 'n3.n4', 'n2'].
+                 delimiter='.',
+                 verbosity=True):
+        self.group_cols = [group_cols] if isinstance(group_cols, str) else group_cols # List of column names combination: e.g. ['n1.n2.n4', 'n3.n4', 'n2'].
         self.target_col = target_col # String: 'target' by default.
         self.stats = defaultdict(dict) # key: column names combination; value: corresponding info about n, N, and computed code.
         self.N_min = N_min # regularization control
@@ -23,6 +25,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
         self.n_fold = n_fold
         self.delimiter = delimiter
         self.drop_intermediate = drop_intermediate
+        self.verbosity = verbosity
         self.set_original_col = set()
 
     def fit(self, X, y):
@@ -52,8 +55,12 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
 
     def _cv_fit(self, df):
         kf = KFold(n_splits = self.n_fold, shuffle = True, random_state=2019)
+        size_col_subsets = len(self.col_subsets)
+        count_subset = 0
         for subset in self.col_subsets:
+            count_subset += 1
             for i, (tr_idx, val_idx) in enumerate(kf.split(df)):
+                if self.verbosity: print(f'{subset} - Order {count_subset}/{size_col_subsets} - Round {i+1}/{self.n_fold}')
                 df_tr, df_val = df.iloc[tr_idx].copy(), df.iloc[val_idx].copy() # Vital for avoid "A value is trying to be set on a copy of a slice from a DataFrame." warning.
                 df_stat, stat, cross_features = self._update(df_tr, subset)
                 features_encoded = cross_features + '_code'
@@ -154,6 +161,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                     X.drop(col, axis=1, inplace=True)
         return X
 
+#%%
 if __name__ == '__main__':
     np.random.seed(1)
     k = 8
@@ -179,7 +187,7 @@ if __name__ == '__main__':
     display(test)
     
     te = BayCatEncoder(
-            ['n1.n2.n3', 'n2.n3', 'n3'], 
+            'n1.n2.n3', #['n1.n2.n3', 'n2.n3', 'n3'], 
             target_col='target', 
             drop_original=False, 
             drop_intermediate=True,
@@ -189,3 +197,4 @@ if __name__ == '__main__':
         .fit(train.drop('target', axis=1), train.target) \
         .transform(test)
     te
+# %%

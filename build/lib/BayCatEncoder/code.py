@@ -1,6 +1,7 @@
 #%%
 import numpy as np
 import pandas as pd
+import time
 from sklearn.base import BaseEstimator, TransformerMixin
 from collections import defaultdict
 from sklearn.model_selection import KFold      
@@ -20,7 +21,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
     def __init__(self, 
                  group_cols, 
                  target_col='target', 
-                 N_min=1, 
+                 N_min=1, # the higher, the more regularization is introduced into the update.
                  drop_original=False, 
                  CV=True, 
                  n_fold=5,

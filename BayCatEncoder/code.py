@@ -22,12 +22,12 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                  group_cols, 
                  target_col='target', 
                  N_min=1, # the higher, the more regularization is introduced into the update.
-                 drop_original=False, 
                  CV=True, 
                  n_fold=5,
-                 drop_intermediate=False,
-                 delimiter='.',
                  verbosity=True,
+                 delimiter='.',
+                 drop_original=False, 
+                 drop_intermediate=False,
                  random_seed=2020):
         self.group_cols = [group_cols] if isinstance(group_cols, str) else group_cols # List of column names combination: e.g. ['n1.n2.n4', 'n3.n4', 'n2'].
         self.target_col = target_col # String: 'target' by default.
@@ -55,14 +55,21 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
         return self
 
     def _single_fit(self, df):
+        size_col_subsets = len(self.col_subsets)
+        count_subset = 0       
+        print(f'start bayesian target encoding on cross features in the following order: {self.col_subsets}') 
         for subset in self.col_subsets:
-            df_stat, stat, cross_features = self._update(df, subset)
-            features_encoded = cross_features + '_code'
-            self.stats[cross_features] = pd.merge(
-                stat, 
-                df_stat.groupby(subset)[features_encoded].mean(), 
-                left_index=True, 
-                right_index=True)       
+            count_subset += 1
+            with Timer() as t:
+                if self.verbosity: print(f'{subset} - Order {count_subset}/{size_col_subsets}')
+                df_stat, stat, cross_features = self._update(df, subset)
+                features_encoded = cross_features + '_code'
+                self.stats[cross_features] = pd.merge(
+                    stat, 
+                    df_stat.groupby(subset)[features_encoded].mean(), 
+                    left_index=True, 
+                    right_index=True)       
+            if self.verbosity: print(f'time elapsed: {t.hour} hours {t.min} mins {t.second} seconds')   
         return self 
 
     def _cv_fit(self, df):
@@ -164,7 +171,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                     right_index=True, 
                     how='left')
             if len(subset) == 1:
-                X[key + '_code'].fillna(self.global_prior_mean)
+                X[key + '_code'].fillna(self.global_prior_mean, inplace=True)
             else:
                 parent_key = '.'.join(subset[:-1]) + '_code'            
                 X[key + '_code'].fillna(X[parent_key].mask(X[parent_key] > self.global_prior_mean, self.global_prior_mean), inplace=True)
@@ -192,7 +199,7 @@ if __name__ == '__main__':
     )
     train.columns = ['n1','n2','n3', 'target']
     
-    display(train)
+    train
 
     k = 6
     n4 = np.random.choice(['a','b'], k)
@@ -201,18 +208,17 @@ if __name__ == '__main__':
     test = pd.DataFrame({'n4': n4, 'n2': n5, 'n3':n6})
     test.columns = ['n1','n2','n3']
     
-    display(test)
+    test
     
     te = BayCatEncoder(
             'n1.n2.n3', #['n1.n2.n3', 'n2.n3', 'n3'], 
             target_col='target', 
             drop_original=False, 
             drop_intermediate=False,
-            CV=True, 
-            n_fold=3
+            CV=False
         ) \
         .fit(train.drop('target', axis=1), train.target) 
     # te.transform(test)
-    display(te.transform(test))
+    te.transform(test)
 
 # %%

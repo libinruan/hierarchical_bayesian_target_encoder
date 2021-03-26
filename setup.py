@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="hierarchical-bay-cat-encoder",
-    version="0.4.3",
+    version="0.4.4",
     author="Li-Pin Juan",
     author_email="lipin.juan02@gmail.com",
     description="Bayesian target encoder with the capacity to encode classes derived from categorical features that relate to one another in a hierarchical structure.",

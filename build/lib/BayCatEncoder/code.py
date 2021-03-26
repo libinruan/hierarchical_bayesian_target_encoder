@@ -167,7 +167,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                 X[key + '_code'].fillna(self.global_prior_mean)
             else:
                 parent_key = '.'.join(subset[:-1]) + '_code'            
-                X[key + '_code'].fillna(X[parent_key], inplace=True)
+                X[key + '_code'].fillna(X[parent_key].mask(X[parent_key] > self.global_prior_mean, self.global_prior_mean), inplace=True)
         if self.drop_original:
             for col in self.set_original_col:
                 X.drop(col, axis=1, inplace=True)

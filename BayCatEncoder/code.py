@@ -4,7 +4,7 @@ import pandas as pd
 import time
 from sklearn.base import BaseEstimator, TransformerMixin
 from collections import defaultdict
-from sklearn.model_selection import KFold      
+from sklearn.model_selection import KFold, StratifiedKFold      
 
 class Timer:
     def __enter__(self):
@@ -27,22 +27,22 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                  n_fold=5,
                  drop_intermediate=False,
                  delimiter='.',
-                 verbosity=True):
+                 verbosity=True,
+                 random_seed=2020):
         self.group_cols = [group_cols] if isinstance(group_cols, str) else group_cols # List of column names combination: e.g. ['n1.n2.n4', 'n3.n4', 'n2'].
         self.target_col = target_col # String: 'target' by default.
         self.stats = defaultdict(dict) # key: column names combination; value: corresponding info about n, N, and computed code.
         self.N_min = N_min # regularization control
         self.drop_original = drop_original # toggle key for whether to drop original column name(s) or not.
-        self.CV = CV # Bool: 
+        self.CV = CV # Bool
         self.n_fold = n_fold
-        self.delimiter = delimiter
         self.drop_intermediate = drop_intermediate
-        self.verbosity = verbosity
+        self.delimiter = delimiter
+        self.verbosity = verbosity # Bool
+        self.seed = random_seed
         self.set_original_col = set()
 
-    def fit(self, X, y):
-        # self.col_subsets = GetHierarchicalSubsets(self.group_cols).generate_subsets()
-        
+    def fit(self, X, y):     
         self.col_subsets = self._generate_subsets(self.group_cols)
         df = pd.concat([X.copy(), y.copy()], axis=1)
         assert(isinstance(self.target_col, str))
@@ -66,13 +66,13 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
         return self 
 
     def _cv_fit(self, df):
-        kf = KFold(n_splits = self.n_fold, shuffle = True, random_state=2019)
+        kf = StratifiedKFold(n_splits = self.n_fold, shuffle = True, random_state=self.seed)
         size_col_subsets = len(self.col_subsets)
         count_subset = 0
         for subset in self.col_subsets:
             count_subset += 1
             with Timer() as t:
-                for i, (tr_idx, val_idx) in enumerate(kf.split(df)):
+                for i, (tr_idx, val_idx) in enumerate(kf.split(df.drop(self.target_col, axis=1), df[self.target_col])):
                     if self.verbosity: print(f'{subset} - Order {count_subset}/{size_col_subsets} - Round {i+1}/{self.n_fold}')
                     df_tr, df_val = df.iloc[tr_idx].copy(), df.iloc[val_idx].copy() # Vital for avoid "A value is trying to be set on a copy of a slice from a DataFrame." warning.
                     df_stat, stat, cross_features = self._update(df_tr, subset)
@@ -90,11 +90,12 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
         return self        
 
     def _update(self, df, subset):
+        self.global_prior_mean = df[self.target_col].mean()
         if len(subset) == 1:
             self.set_original_col.add(*subset)
             upper_level_cols = 'global'
             if not upper_level_cols + '_prior_mean' in df.columns:
-                df.loc[:, upper_level_cols + '_prior_mean'] = df[self.target_col].mean()
+                df.loc[:, upper_level_cols + '_prior_mean'] = self.global_prior_mean
         else:
             upper_level_cols = self.delimiter.join(subset[:-1]) # e.g. the n1.n2 subset's upper level feature is `n1`.
             if not upper_level_cols + '_prior_mean' in df.columns: 
@@ -126,9 +127,6 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
         return df_stat, stat, cross_features
 
     def _generate_subsets(self, groups, delimiter='.'):
-        # cnt = 0 
-        # groups = groups
-        # delimiter = delimiter
         subsets = defaultdict(list)    
         for g in groups:
             chain = g.split(delimiter)
@@ -153,7 +151,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
             s |= set(col_subset)
         for col in s:
             if not col in df.columns: return False
-        return True
+        return True        
 
     def transform(self, X):
         assert(self._check_col_consistency(X))
@@ -165,6 +163,11 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
                     left_on=subset, 
                     right_index=True, 
                     how='left')
+            if len(subset) == 1:
+                X[key + '_code'].fillna(self.global_prior_mean)
+            else:
+                parent_key = '.'.join(subset[:-1]) + '_code'            
+                X[key + '_code'].fillna(X[parent_key], inplace=True)
         if self.drop_original:
             for col in self.set_original_col:
                 X.drop(col, axis=1, inplace=True)
@@ -178,7 +181,7 @@ class BayCatEncoder(BaseEstimator, TransformerMixin):
 #%%
 if __name__ == '__main__':
     np.random.seed(1)
-    k = 8
+    k = 15
     n1 = np.random.choice(['a','b'], k)
     n2 = np.random.choice(['c','d'], k)
     n3 = np.random.choice(['e','f'], k)
@@ -204,11 +207,12 @@ if __name__ == '__main__':
             'n1.n2.n3', #['n1.n2.n3', 'n2.n3', 'n3'], 
             target_col='target', 
             drop_original=False, 
-            drop_intermediate=True,
+            drop_intermediate=False,
             CV=True, 
-            n_fold=2
+            n_fold=3
         ) \
-        .fit(train.drop('target', axis=1), train.target) \
-        .transform(test)
-    te
+        .fit(train.drop('target', axis=1), train.target) 
+    # te.transform(test)
+    display(te.transform(test))
+
 # %%
